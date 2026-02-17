@@ -1,10 +1,12 @@
 import { Schema, model } from 'mongoose';
+import bcrypt from 'bcrypt';
 import {
   TAddress,
   TFullName,
   TUsersData,
   UserModelType,
 } from './users.interface';
+import config from '../../config';
 const fullNameSchema = new Schema<TFullName>({
   firstName: { type: String, required: [true, 'First Name is required'] },
   lastName: { type: String, required: [true, 'Last Name is required'] },
@@ -42,6 +44,28 @@ const usersDataSchema = new Schema<TUsersData, UserModelType>({
   hobbies: { type: [String], required: [true, 'Hobbies are required'] },
   address: { type: addressSchema, required: [true, 'Address is required'] },
   isDeleted: { type: Boolean, default: false },
+});
+// mongoose pre save hook middleware
+usersDataSchema.pre('save', async function () {
+  // eslint-disable-next-line @typescript-eslint/no-this-alias
+  const user = this;
+  user.password = await bcrypt.hash(
+    user.password,
+    Number(config.bcrypt_salt_rounds),
+  );
+});
+
+// Post save hook middleware
+usersDataSchema.post('save', function () {
+  this.password = '';
+});
+
+// query middleware
+usersDataSchema.pre('find', function () {
+  this.find({ isDeleted: { $ne: true } });
+});
+usersDataSchema.pre('findOne', function () {
+  this.findOne({ isDeleted: { $ne: true } });
 });
 
 // Creating a custom static method
